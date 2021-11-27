@@ -1,0 +1,116 @@
+/* File:  WCIST210_LAB_08_DEMONSTRATION.txt     PLEASE NOTE .. THIS IS NOT THE LAB             
+
+   Script Created by Gary Heberling on November 14, 2017 by Gary Heberling
+
+   This script will make modifications to db schema for FLIX2YOU in VLABS, SQL SERVER to
+   allow the accumulation of number of videos in stock by video store.
+
+*/
+
+/*  Add an addition field to the VIDEO_STORES table to hold a numeric value  */
+
+GO
+ALTER TABLE video_stores ADD num_videos_in_stock INT;
+
+/*  Set value of num_videos_in_stock in VIDEO_STORES for existing rows to zero */
+
+GO
+UPDATE video_stores SET num_videos_in_stock = 0;
+
+/* Alter num_videos_in_stock in VIDEO_STORES to include NOT NULL condition  */
+
+GO
+ALTER TABLE video_stores ALTER COLUMN num_videos_in_stock INT NOT NULL;
+
+/*  Create trigger for the INSERT event on MOVIES */
+
+GO
+CREATE TRIGGER tr_movies_num_movies_add
+   ON movies FOR INSERT
+   AS
+   BEGIN
+     UPDATE video_stores
+       SET num_videos_in_stock = num_videos_in_stock + (SELECT number_in_stock FROM INSERTED)
+       WHERE store_id = (SELECT store_id from INSERTED);
+   END;
+
+/*  Create trigger for the DELETE event on MOVIES */
+
+GO
+CREATE TRIGGER tr_movies_num_movies_delete
+   ON movies FOR DELETE
+   AS
+   BEGIN
+     UPDATE video_stores
+       SET num_videos_in_stock = num_videos_in_stock - (SELECT number_in_stock FROM DELETED)
+       WHERE store_id = (SELECT store_id from DELETED);
+   END;
+
+/* Create trigger for the UPDATE event on MOVIES */
+
+GO
+CREATE TRIGGER tr_movies_num_movies_update
+   ON movies FOR UPDATE
+   AS
+   BEGIN
+     UPDATE video_stores
+       SET num_videos_in_stock = num_videos_in_stock - (SELECT number_in_stock FROM DELETED)
+       WHERE store_id = (SELECT store_id from DELETED);
+     UPDATE video_stores
+       SET num_videos_in_stock = num_videos_in_stock + (SELECT number_in_stock FROM INSERTED)
+       WHERE store_id = (SELECT store_id FROM INSERTED);
+   END;
+
+/* The following commands are commented out of this script but is available here for testing of the triggers
+
+THIS IS AN EXAMPLE OF HOW YOU MAY WANT TO TEST YOUR TRIGGERS .. NOTE THAT THERE ARE SELECT AFTER EACH STATEMENT
+
+IN ORDER TO TEST,  you should copy and paste each command at a time ... and do NOT run the following as a script 
+
+FIRST TEST THE INSERT TRIGGER */
+
+/*  BEGIN THE TESTS 
+
+COMMENT:  TEST THE INSERT trigger
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+INSERT INTO movies VALUES (1, 1, 1, 1, 2012, 'Test Movie A',
+'Description of test movie a',
+ 111, 1, 1.99, 25.39);
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+INSERT INTO movies VALUES (1, 1, 1, 2, 2012, 'Test Movie B',
+'Description of test movie B',
+ 222, 1, 1.99, 25.39);
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+INSERT INTO movies VALUES (1, 1, 1, 2, 2012, 'Test Movie C',
+'Description of test movie C',
+ 333, 1, 1.99, 25.39)
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+COMMENT:  TEST THE UPDATE TRIGGER
+
+UPDATE movies set number_in_stock = 333 WHERE movie_title = 'Test Movie B';
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+UPDATE movies set store_id = 1 WHERE movie_title = 'Test Movie B';
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+COMMENT : TEST the DELTE trigger
+Update actors set num_movies = 0
+
+DELETE FROM movies where movie_title = 'Test Movie C'
+
+
+SELECT store_id, store_name, num_videos_in_stock  FROM video_stores;
+
+END OF TEST */
+
+/* END OF SCRIPT */
